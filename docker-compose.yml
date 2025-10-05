@@ -54,6 +54,7 @@ services:
             - app
         networks:
             - job-portal-network
+        command: [nginx, '-g', 'daemon off;']
 
 volumes:
     db_data:
