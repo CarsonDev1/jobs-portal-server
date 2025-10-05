@@ -20,30 +20,18 @@ function validateEnv() {
 const app = express();
 const PORT = parseInt(process.env.PORT || '5000', 10);
 
-// Middleware
-// Configure CORS via env variable CORS_ORIGIN
-// - If CORS_ORIGIN is '*', allow all origins
-// - If it's a comma-separated list, allow those origins
-// - If omitted, allow all by default (development friendly)
-const corsOrigin = process.env.CORS_ORIGIN;
-let corsOptions = {};
-if (!corsOrigin || corsOrigin === '*') {
-	corsOptions = { origin: true };
-} else {
-	const allowedOrigins = corsOrigin
-		.split(',')
-		.map((s) => s.trim())
-		.filter(Boolean);
-	corsOptions = { origin: allowedOrigins };
-}
-app.use(cors(corsOptions));
+// Middleware - CORS configuration (FIXED)
+app.use(
+	cors({
+		origin: true, // Allow all origins
+		credentials: true,
+		methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+		allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+	})
+);
 
-// Add headers to allow mixed content
+// Security headers
 app.use((req, res, next) => {
-	res.header('Access-Control-Allow-Origin', '*');
-	res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-	res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-	res.header('Access-Control-Allow-Credentials', 'true');
 	res.header('X-Content-Type-Options', 'nosniff');
 	res.header('X-Frame-Options', 'DENY');
 	res.header('X-XSS-Protection', '1; mode=block');
@@ -94,6 +82,8 @@ async function initDatabase() {
      ON CONFLICT (username) DO NOTHING`,
 		['admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin@jobportal.com']
 	);
+
+	console.log('Database tables initialized successfully');
 }
 
 // Auth middleware
@@ -254,7 +244,7 @@ app.get('/api/jobs', async (req, res) => {
 		});
 	} catch (error) {
 		console.error('Get jobs error:', error);
-		res.status(500).json({ message: 'Lỗi server' });
+		res.status(500).json({ message: 'Lỗi server', error: error.message });
 	}
 });
 
@@ -576,6 +566,19 @@ app.get('/health', (req, res) => {
 	res.json({ status: 'OK', message: 'Server is running' });
 });
 
+// API info endpoint
+app.get('/api', (req, res) => {
+	res.json({
+		message: 'Job Portal API',
+		version: '1.0.0',
+		endpoints: {
+			public: ['/api/jobs', '/api/jobs/:id'],
+			auth: ['/api/auth/login', '/api/auth/verify'],
+			admin: ['/api/admin/jobs', '/api/admin/jobs/:id', '/api/admin/stats'],
+		},
+	});
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
 	console.error(err.stack);
@@ -591,14 +594,17 @@ app.use('*', (req, res) => {
 (async () => {
 	try {
 		validateEnv();
+		console.log('Connecting to database...');
 		await pool.query('SELECT 1');
-		console.log('Database connection successful');
+		console.log('✓ Database connection successful');
+
 		await initDatabase();
-		console.log('Database initialized');
+		console.log('✓ Database initialized');
 
 		const server = app.listen(PORT, '0.0.0.0', () => {
-			console.log(`Server is running on port ${PORT}`);
-			console.log(`Health check: http://localhost:${PORT}/health`);
+			console.log(`✓ Server is running on port ${PORT}`);
+			console.log(`  Health check: http://localhost:${PORT}/health`);
+			console.log(`  API info: http://localhost:${PORT}/api`);
 		});
 
 		// Handle server errors (e.g. port already in use) with a clear message
@@ -613,7 +619,7 @@ app.use('*', (req, res) => {
 			process.exit(1);
 		});
 	} catch (error) {
-		console.error('Database connection failed:', error);
+		console.error('✗ Database connection failed:', error);
 		process.exit(1);
 	}
 })();
