@@ -9,7 +9,7 @@ services:
             POSTGRES_USER: ${DB_USER}
             POSTGRES_PASSWORD: ${DB_PASSWORD}
         ports:
-            - '5433:5432'
+            - '5432:5432'
         volumes:
             - db_data:/var/lib/postgresql/data
         healthcheck:
@@ -45,8 +45,8 @@ services:
         container_name: job-portal-nginx
         restart: always
         ports:
-            - '0.0.0.0:8080:8080'
-            - '0.0.0.0:8443:8443'
+            - '80:80'
+            - '443:443'
         volumes:
             - ./nginx.conf:/etc/nginx/nginx.conf:ro
             - ./certs:/etc/nginx/certs:ro
